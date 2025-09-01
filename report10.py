@@ -174,8 +174,10 @@ def plot_flight_metrics(df, group_col, metrics, chart_type):
         df["hour"] = df["hour"].apply(lambda h: datetime.datetime.strptime(str(h), "%H").strftime("%I %p"))
         df["hour"] = pd.Categorical(df["hour"], categories=hour_order, ordered=True)
     elif group_col == "year":
-        df["year"] = df["date"].dt.year.astype(str)
+        df["year"] = df["date"].dt.year   
         df = df.sort_values("year", ascending=False)
+        df["year"] = df["year"].astype(str) 
+
 
     # --- Aggregate average values ---
     avg_vals = (
@@ -282,5 +284,6 @@ if not gps_all.empty:
     fig_map.update_layout(mapbox_style="open-street-map")
 
     st.plotly_chart(fig_map, use_container_width=True)
+
 
 
