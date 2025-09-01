@@ -156,10 +156,13 @@ st.plotly_chart(px.bar(flight_summary, x="flight_id", y="avg_battery_remaining",
 
 def plot_flight_metrics(df, group_col, metrics, chart_type):
 
-    month_order = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday","Friday", "Saturday", "Sunday"]
+    month_order = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
+                   "Aug", "Sep", "Oct", "Nov", "Dec"]
+    weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday",
+                     "Friday", "Saturday", "Sunday"]
     hour_order = [datetime.datetime.strptime(str(h), "%H").strftime("%I %p") for h in range(24)]
 
+    # --- Categorize group_col properly ---
     if group_col == "month":
         df["month"] = df["date"].dt.strftime("%b")
         df["month"] = pd.Categorical(df["month"], categories=month_order, ordered=True)
@@ -171,24 +174,31 @@ def plot_flight_metrics(df, group_col, metrics, chart_type):
         df["hour"] = df["hour"].apply(lambda h: datetime.datetime.strptime(str(h), "%H").strftime("%I %p"))
         df["hour"] = pd.Categorical(df["hour"], categories=hour_order, ordered=True)
     elif group_col == "year":
-        # if "year" not in df.columns:
         df["year"] = df["date"].dt.year.astype(str) 
-        df["year"] = df["year"].astype(str)  # keep categorical, not numeric
 
-    avg_vals = (df.groupby(["flight_id", group_col])[list(metrics.keys())].mean().reset_index())
+    # --- Aggregate average values ---
+    avg_vals = (
+        df.groupby(["flight_id", group_col])[list(metrics.keys())]
+        .mean()
+        .reset_index()
+    )
 
+    # --- Convert to long format for plotting ---
     avg_long = avg_vals.melt(
         id_vars=["flight_id", group_col],
         value_vars=list(metrics.keys()),
         var_name="Metric",
-        value_name="Value")
-    
+        value_name="Value"
+    )
     avg_long["Metric"] = avg_long["Metric"].map(metrics)
 
-
     figs = {}
-    
+
+    # --- Plot metrics, but skip separate Ground & Air Speed ---
     for metric in avg_long["Metric"].unique():
+        if metric in ["Ground Speed", "Air Speed"]:
+            continue  # skip individual plots
+
         subset = avg_long[avg_long["Metric"] == metric]
 
         if chart_type == "line":
@@ -212,7 +222,36 @@ def plot_flight_metrics(df, group_col, metrics, chart_type):
         )
         figs[metric] = fig
 
+    # --- Only Combined Ground vs Air Speed plot ---
+    if {"Ground Speed", "Air Speed"}.issubset(set(avg_long["Metric"].unique())):
+        subset = avg_long[avg_long["Metric"].isin(["Ground Speed", "Air Speed"])]
+
+        if chart_type == "line":
+            fig = px.line(
+                subset, x=group_col, y="Value",
+                color="Metric",  # differentiate by metric
+                line_dash="flight_id",  # distinguish flights
+                markers=True,
+                title=f"{group_col.capitalize()} - Ground vs Air Speed"
+            )
+        elif chart_type == "bar":
+            fig = px.bar(
+                subset, x=group_col, y="Value",
+                color="Metric", barmode="group",
+                facet_col="flight_id",  # optional: split per flight
+                title=f"{group_col.capitalize()} - Ground vs Air Speed"
+            )
+        else:
+            raise ValueError("Unsupported chart_type. Use 'line' or 'bar'.")
+
+        fig.update_layout(
+            xaxis=dict(type="category"),
+            yaxis_title="Average Speed"
+        )
+        figs["Ground vs Air Speed"] = fig
+
     return figs
+
 
 
 metrics = {
@@ -242,3 +281,4 @@ if not gps_all.empty:
     fig_map.update_layout(mapbox_style="open-street-map")
 
     st.plotly_chart(fig_map, use_container_width=True)
+
