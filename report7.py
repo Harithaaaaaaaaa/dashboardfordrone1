@@ -9,7 +9,11 @@ import streamlit as st
 #  CONFIG
 # =========================
 st.set_page_config(layout="wide", page_title=" Drone Multi-Flight Dashboard")
-DATA_FOLDER = r"C:\Users\actionfi\Desktop\Projects\Aakash\Aakash_api_etccc\QGC data basic\Datassss\dataforserver"
+
+# DATA_FOLDER = r"C:\Users\actionfi\Desktop\Projects\Aakash\Aakash_api_etccc\QGC data basic\Datassss\dataforserver"
+
+DATA_FOLDER = os.path.join(os.path.dirname(__file__), "dataforserver")
+
 
 # =========================
 #  REQUIRED COLUMNS
@@ -236,4 +240,5 @@ if not gps_all.empty:
                           color="flight_id", title="GPS Tracks of All Flights",
                           height=600)
     fig_map.update_layout(mapbox_style="open-street-map")
+
     st.plotly_chart(fig_map, use_container_width=True)
